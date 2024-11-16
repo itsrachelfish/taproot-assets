@@ -37,6 +37,7 @@ import (
 	"github.com/lightninglabs/taproot-assets/rfqmsg"
 	"github.com/lightninglabs/taproot-assets/rpcperms"
 	"github.com/lightninglabs/taproot-assets/tapchannel"
+	"github.com/lightninglabs/taproot-assets/tapdb"
 	"github.com/lightninglabs/taproot-assets/tapfreighter"
 	"github.com/lightninglabs/taproot-assets/tapgarden"
 	"github.com/lightninglabs/taproot-assets/tappsbt"
@@ -954,7 +955,9 @@ func (r *rpcServer) ListAssets(ctx context.Context,
 
 	rpcAssets, err := r.fetchRpcAssets(
 		ctx, req.WithWitness, req.IncludeSpent, req.IncludeLeased,
+		req.MinAmount,
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -1007,10 +1010,20 @@ func (r *rpcServer) ListAssets(ctx context.Context,
 }
 
 func (r *rpcServer) fetchRpcAssets(ctx context.Context, withWitness,
-	includeSpent, includeLeased bool) ([]*taprpc.Asset, error) {
+	includeSpent, includeLeased bool,
+	minAmountFilter uint64) ([]*taprpc.Asset, error) {
+
+	constraints := tapfreighter.CommitmentConstraints{
+		CoinSelectType: tapsend.ScriptTreesAllowed,
+		MinAmt:         minAmountFilter,
+	}
+
+	filters := &tapdb.AssetQueryFilters{
+		CommitmentConstraints: constraints,
+	}
 
 	assets, err := r.cfg.AssetStore.FetchAllAssets(
-		ctx, includeSpent, includeLeased, nil,
+		ctx, includeSpent, includeLeased, filters,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read chain assets: %w", err)
@@ -1161,7 +1174,10 @@ func (r *rpcServer) listBalancesByGroupKey(ctx context.Context,
 func (r *rpcServer) ListUtxos(ctx context.Context,
 	req *taprpc.ListUtxosRequest) (*taprpc.ListUtxosResponse, error) {
 
-	rpcAssets, err := r.fetchRpcAssets(ctx, false, false, req.IncludeLeased)
+	rpcAssets, err := r.fetchRpcAssets(
+		ctx, false, false, req.IncludeLeased, 0,
+	)
+
 	if err != nil {
 		return nil, err
 	}
