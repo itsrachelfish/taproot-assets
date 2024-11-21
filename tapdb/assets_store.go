@@ -870,6 +870,15 @@ func (a *AssetStore) constraintsToDbFilter(
 				Valid: true,
 			}
 		}
+
+		// If no MaxAmt is specified, default to MaxInt
+		if query.MaxAmt == 0 {
+			assetFilter.MaxAmt = sql.NullInt64{
+				Int64: int64(math.MaxInt64 - 1),
+				Valid: true,
+			}
+		}
+
 		if query.MinAnchorHeight != 0 {
 			assetFilter.MinAnchorHeight = sqlInt32(
 				query.MinAnchorHeight,
